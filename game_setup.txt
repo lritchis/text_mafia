@@ -1,0 +1,24 @@
+//JAL
+1
+//TI
+1
+Lookout
+//TS
+1
+//TP-TK
+1
+Veteran [U]
+//RT
+1
+//GF
+1
+//RM
+1
+//NK
+1
+//NE
+1
+//NB
+1
+//ANY
+1
