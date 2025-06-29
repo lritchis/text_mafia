@@ -50,10 +50,9 @@ class game:
                     self.TP_TK = TP_TK(category_num[i],self.known_list[i])
                 case "//RT":
                     if(hasattr(self,'TP_TK')): ## specifically handle case where we combine TP and TK
-                        RT_options = self.TI.options + self.TS.options + self.TP_TK.options
+                        self.RT = RT(category_num[i], self.known_list[i], self.TI.options, self.TS.options, self.TP_TK.options, 'None')
                     else: 
-                        RT_options = self.TI.options + self.TS.options + self.TP.options + self.TK.options
-                    self.RT = assignable_category(category_num[i], self.known_list[i], RT_options)
+                        self.RT = RT(category_num[i], self.known_list[i], self.TI.options, self.TS.options, self.TK.options, self.TP.options)
                 case "//RM":
                     self.RM = RM(category_num[i],self.known_list[i])
                 case "//NK":
@@ -62,23 +61,25 @@ class game:
                     self.NE = NE(category_num[i],self.known_list[i])
                 case "//NB":
                     self.NB = NB(category_num[i],self.known_list[i])
-                case "//NB-NE":
-                    self.NB_NE = NB_NE(category_num[i],self.known_list[i])
-                case "//RN":
-                    RN_options = self.NK.options + self.NB.options + self.NE.options
-                    self.RN = assignable_category(category_num[i],self.known_list[i], RN_options)
-                case "//ANY": ## need to fix the ANY method, it is not just a random choice from role list
-                    Town_options = self.RT.options 
-                    if(hasattr(self,'RN')):
-                        Other_options = self.RM.options + self.RN.options
-                    elif (hasattr(self,'NB_NE')):
-                        Other_options = self.RM.options + self.NK.options + self.NE_NB.options
+                case "//NE-NB":
+                    self.NE_NB = NE_NB(category_num[i],self.known_list[i])
+                # RN makes life harder and we usually don't have it so skipping for now and regretting it later
+                #case "//RN":
+                #   RN_options = self.NK.options + self.NB.options + self.NE.options
+                #    self.RN = assignable_category(category_num[i],self.known_list[i], RN_options)
+                case "//ANY":
+                    ## if we have TP_TK, TP options will already be 'None' from RT.
+                    if(hasattr(self,'NB-NE')): 
+                        self.NB = category(0)
+                        self.NE = category(0)
                     else:
-                        Other_options = self.RM.options + self.NK.options + self.NB.options + self.NE.options
-                    self.ANY = ANY(category_num[i],self.known_list[i], Town_options, Other_options)                    
+                        self.NB_NE = category(0)
+                    self.ANY = ANY(category_num[i], self.known_list[i], self.RT.TI_options, self.RT.TS_options, self.RT.TK_options, self.RT.TP_options,
+                                self.RM.options, self.NK.options, self.NE.options, self.NB.options, self.NB_NE.options)                  
 class category:
     def __init__(self, num):
         self.num = num
+        self.options = 'None'
 
 class assignable_category(category):
     def __init__(self, num, known, options):
@@ -88,7 +89,7 @@ class assignable_category(category):
         self.roles = []
         self.options = options
 
-        #print(len(known))
+        
         for i in range(len(known)):
             self.roles.append(known[i])
             if "[U]" in self.roles[i]:
@@ -149,29 +150,95 @@ class NB(assignable_category):
         options = ['Amnesiac', 'Jester', 'Survivor']
         assignable_category.__init__(self, num, known, options)
 
-class NB_NE(assignable_category):
+class NE_NB(assignable_category):
     def __init__(self, num, known):
         options = ['Lifebinder', 'Witch', 'Amnesiac', 'Jester', 'Survivor']
         assignable_category.__init__(self, num, known, options)
 
-class ANY:
-    def __init__(self, num, known, Town_options, Other_options):
+class RT:
+    def __init__(self, num, known, TI_options, TS_options, TK_options, TP_options):
         self.num = num
         self.known = known
         self.roles = []
-        self.Town_options = Town_options
-        self.Other_options = Other_options
+        self.TI_options = TI_options
+        self.TS_options = TS_options
+        self.TK_options = TK_options
+        self.TP_options = TP_options
 
         for i in range(len(known)):
             self.roles.append(known[i])
+            if "[U]" in self.roles[i]:
+                if(self.roles[i] in TK_options):
+                    self.TK_options.remove(self.roles[i])
+                elif (self.roles[i] in TS_options):
+                    self.TS_options.remove(self.role[i])
+
+        for i in range(int (num) - len(known)):
+            if (self.TP_options == 'None'): ## combined TP-TK
+                roll = random.randint(1,3)
+            else:
+                roll = random.randint(1,4)
+
+            if roll == 1:
+                self.roles.append(random.choice(TI_options))
+            elif roll == 2:
+                self.roles.append(random.choice(TS_options))
+                if "[U]" in self.roles[i]:
+                    self.TS_options.remove(self.roles[i]) 
+            elif roll == 3:
+                self.roles.append(random.choice(TK_options)) 
+                if "[U]" in self.roles[i]:
+                    self.TK_options.remove(self.roles[i]) 
+            else:
+                self.roles.append(random.choice(TP_options))
+
+class ANY:
+    def __init__(self, num, known, TI_options, TS_options, TK_options, TP_options,
+                                RM_options, NK_options, NE_options, NB_options, NE_NB_options):
+        self.num = num
+        self.known = known
+        self.roles = []
+
+        for i in range(len(known)): ## there is most assuredly a better way to do this
+            self.roles.append(known[i])
+            if "[U]" in self.roles[i]:
+                if(self.roles[i] in TK_options):
+                    TK_options.remove(self.roles[i])
+                elif (self.roles[i] in TS_options):
+                    TS_options.remove(self.role[i])
+                elif (self.roles[i] in NK_options):
+                    NK_options.remove(self.role[i])
+                elif (self.roles[i] in RM_options):
+                    RM_options.remove(self.role[i])
+
+        if(NB_options == 'None'):
+            Other_options = RM_options + NK_options + NE_NB_options
+        else:
+            Other_options = RM_options + NK_options + NE_options + NB_options
 
         for i in range(int (num) - len(known)):
             roll = random.randint(1,2)
             if(roll == 1): ## Town 50% of the time
-                self.roles.append(random.choice(self.Town_options))
-                if "[U]" in self.roles[i]:
-                    self.Town_options.remove(self.roles[i])
+                if (TP_options == 'None'): ## combined TP-TK
+                    roll2 = random.randint(1,3)
+                else:
+                    roll2 = random.randint(1,4)
+                ## Town rolls for Town Category first
+                if roll2 == 1:
+                    self.roles.append(random.choice(TI_options))
+                elif roll2 == 2:
+                    self.roles.append(random.choice(TS_options))
+                    if "[U]" in self.roles[i]:
+                        TS_options.remove(self.roles[i]) 
+                elif roll2 == 3:
+                    self.roles.append(random.choice(TK_options)) 
+                    if "[U]" in self.roles[i]:
+                        TK_options.remove(self.roles[i]) 
+                else:
+                    self.roles.append(random.choice(TP_options))
+
             else: # Some other non-Town role 50% of the time
-                self.roles.append(random.choice(self.Other_options))
+                ## Rolls randomly among all non-Town roles
+                self.roles.append(random.choice(Other_options))
                 if "[U]" in self.roles[i]:
-                    self.Other_options.remove(self.roles[i])
+                    Other_options.remove(self.roles[i])
